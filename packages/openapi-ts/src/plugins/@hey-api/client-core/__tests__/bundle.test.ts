@@ -5,7 +5,8 @@ import ts from 'typescript';
 const pluginsDir = path.join(import.meta.dirname, '..', '..');
 
 describe('client bundles', () => {
-  it('pass noImplicitReturns without strictNullChecks', () => {
+  // type-checks every bundle along with its dependencies' types, which takes over 5s on a busy CI runner
+  it('pass noImplicitReturns without strictNullChecks', { timeout: 30_000 }, () => {
     const program = ts.createProgram(
       ts.sys.readDirectory(pluginsDir, ['.ts'], undefined, ['client-*/bundle/*.ts']),
       {
