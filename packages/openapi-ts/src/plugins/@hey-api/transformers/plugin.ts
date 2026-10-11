@@ -1,6 +1,12 @@
 import type { SymbolMeta } from '@hey-api/codegen-core';
 import type { IR } from '@hey-api/shared';
-import { applyNaming, createOperationKey, operationResponsesMap, refToName } from '@hey-api/shared';
+import {
+  applyNaming,
+  buildDiscriminatedUnion,
+  createOperationKey,
+  operationResponsesMap,
+  refToName,
+} from '@hey-api/shared';
 
 import { $ } from '../../../ts-dsl';
 import type { HeyApiTransformersPlugin } from './types';
@@ -36,6 +42,70 @@ function schemaResponseTransformerNodes({
       nodes.push($.return(dataVariableName));
     }
   }
+  return nodes;
+}
+
+/**
+ * Runs each member's transformer only on values whose discriminator matches
+ * that member. Members without transformable fields are skipped. Returns an
+ * empty array when the union can't be resolved to discriminated `$ref` members.
+ */
+function discriminatedUnionNodes({
+  dataExpression,
+  plugin,
+  schema,
+}: {
+  dataExpression?: string | ReturnType<typeof $.attr | typeof $.expr>;
+  plugin: HeyApiTransformersPlugin['Instance'];
+  schema: IR.SchemaObject;
+}): Array<Expr> {
+  if (!dataExpression || !schema.items) {
+    return [];
+  }
+
+  const union = buildDiscriminatedUnion({
+    parentSchema: schema,
+    resolveIrRef: (ref) => {
+      try {
+        return plugin.context.resolveIrRef<IR.SchemaObject>(ref);
+      } catch {
+        return;
+      }
+    },
+    schemas: schema.items,
+  });
+  if (!union) {
+    return [];
+  }
+
+  // a member mapped under several discriminator values gets one branch
+  const valuesByRef = new Map<string, Array<unknown>>();
+  for (const member of union.members) {
+    valuesByRef.set(member.ref, [
+      ...(valuesByRef.get(member.ref) ?? []),
+      member.discriminatedValue,
+    ]);
+  }
+
+  const nodes: Array<Expr> = [];
+  for (const [ref, values] of valuesByRef) {
+    const memberNodes = processSchemaType({
+      dataExpression,
+      plugin,
+      schema: { $ref: ref },
+    });
+    if (!memberNodes.length) {
+      continue;
+    }
+
+    const condition = values
+      .map((value) =>
+        $.binary($(dataExpression).attr(union.discriminatorKey), '===', $.fromValue(value)),
+      )
+      .reduce((left, right) => $.binary(left, '||', right));
+    nodes.push($.if(condition).do(...memberNodes));
+  }
+
   return nodes;
 }
 
@@ -130,12 +200,20 @@ function processSchemaType({
       : processSchemaType({
           dataExpression: 'item',
           plugin,
-          schema: schema.items?.[0]
-            ? schema.items[0]
-            : {
-                ...schema,
-                type: undefined,
-              },
+          schema:
+            // the parser lifts a discriminated union of items onto the array schema
+            schema.discriminator && schema.items.length > 1
+              ? {
+                  discriminator: schema.discriminator,
+                  items: schema.items,
+                  logicalOperator: schema.logicalOperator,
+                }
+              : schema.items?.[0]
+                ? schema.items[0]
+                : {
+                    ...schema,
+                    type: undefined,
+                  },
         });
 
     if (!nodes.length) {
@@ -230,6 +308,13 @@ function processSchemaType({
   }
 
   if (schema.items) {
+    if (schema.discriminator && schema.logicalOperator !== 'and') {
+      const nodes = discriminatedUnionNodes({ dataExpression, plugin, schema });
+      if (nodes.length) {
+        return nodes;
+      }
+    }
+
     if (schema.items.length === 1) {
       return processSchemaType({
         dataExpression: 'item',

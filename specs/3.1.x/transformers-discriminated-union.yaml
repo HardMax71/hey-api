@@ -1,0 +1,126 @@
+openapi: 3.1.1
+info:
+  title: Example API
+  version: 1.0.0
+
+paths:
+  /events:
+    get:
+      operationId: listEvents
+      responses:
+        '200':
+          description: Events response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - events
+                properties:
+                  events:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/CreatedEvent'
+                        - $ref: '#/components/schemas/DeletedEvent'
+                        - $ref: '#/components/schemas/RenamedEvent'
+                      discriminator:
+                        propertyName: type
+                        mapping:
+                          created: '#/components/schemas/CreatedEvent'
+                          deleted: '#/components/schemas/DeletedEvent'
+                          archived: '#/components/schemas/DeletedEvent'
+                          renamed: '#/components/schemas/RenamedEvent'
+  /events/{id}:
+    get:
+      operationId: getEvent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - event
+                properties:
+                  event:
+                    oneOf:
+                      - $ref: '#/components/schemas/CreatedEvent'
+                      - $ref: '#/components/schemas/DeletedEvent'
+                      - $ref: '#/components/schemas/RenamedEvent'
+                    discriminator:
+                      propertyName: type
+                      mapping:
+                        created: '#/components/schemas/CreatedEvent'
+                        deleted: '#/components/schemas/DeletedEvent'
+                        archived: '#/components/schemas/DeletedEvent'
+                        renamed: '#/components/schemas/RenamedEvent'
+                  previous:
+                    $ref: '#/components/schemas/Event'
+  /events/latest:
+    get:
+      operationId: getLatestEvent
+      responses:
+        '200':
+          description: Latest event response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+
+components:
+  schemas:
+    Event:
+      oneOf:
+        - $ref: '#/components/schemas/CreatedEvent'
+        - $ref: '#/components/schemas/DeletedEvent'
+        - $ref: '#/components/schemas/RenamedEvent'
+      discriminator:
+        propertyName: type
+        mapping:
+          created: '#/components/schemas/CreatedEvent'
+          deleted: '#/components/schemas/DeletedEvent'
+          archived: '#/components/schemas/DeletedEvent'
+          renamed: '#/components/schemas/RenamedEvent'
+
+    CreatedEvent:
+      type: object
+      required: [type, createdAt]
+      properties:
+        type:
+          type: string
+          const: created
+        createdAt:
+          type: string
+          format: date-time
+
+    DeletedEvent:
+      type: object
+      required: [type, deletedAt]
+      properties:
+        type:
+          type: string
+          enum: [deleted, archived]
+        deletedAt:
+          type: string
+          format: date-time
+        restoredAt:
+          type: string
+          format: date-time
+
+    RenamedEvent:
+      type: object
+      required: [type, name]
+      properties:
+        type:
+          type: string
+          const: renamed
+        name:
+          type: string

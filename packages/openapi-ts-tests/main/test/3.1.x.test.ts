@@ -916,6 +916,14 @@ describe(`OpenAPI ${version}`, () => {
     },
     {
       config: createConfig({
+        input: 'transformers-discriminated-union.yaml',
+        output: 'transformers-discriminated-union',
+        plugins: ['@hey-api/client-fetch', '@hey-api/transformers'],
+      }),
+      description: 'transforms each member of a discriminated union',
+    },
+    {
+      config: createConfig({
         input: 'transformers-temporal.json',
         output: 'transformers-temporal-polyfill',
         plugins: [
