@@ -408,11 +408,15 @@ export const handler: HeyApiTransformersPlugin['Handler'] = ({ plugin }) => {
         response.items?.length === 2 &&
         response.items.some((item) => item.type === 'null' || item.type === 'void');
 
+      // an array of a discriminated union carries its members in `items` too
+      const isDiscriminatedArray = response.type === 'array' && Boolean(response.discriminator);
+
       if (
         response.items &&
         response.items.length > 1 &&
         response.logicalOperator !== 'and' &&
-        !isNullableUnion
+        !isNullableUnion &&
+        !isDiscriminatedArray
       ) {
         if (plugin.context.config.logs.level === 'debug') {
           console.warn(

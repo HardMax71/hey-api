@@ -73,6 +73,22 @@ export type GetEventResponses = {
 
 export type GetEventResponse = GetEventResponses[keyof GetEventResponses];
 
+export type ListAllEventsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/events/all';
+};
+
+export type ListAllEventsResponses = {
+  /**
+   * All events response
+   */
+  200: Array<CreatedEvent | DeletedEvent | RenamedEvent>;
+};
+
+export type ListAllEventsResponse = ListAllEventsResponses[keyof ListAllEventsResponses];
+
 export type GetLatestEventData = {
   body?: never;
   path?: never;

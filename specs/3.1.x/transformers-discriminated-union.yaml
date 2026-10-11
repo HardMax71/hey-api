@@ -64,6 +64,28 @@ paths:
                         renamed: '#/components/schemas/RenamedEvent'
                   previous:
                     $ref: '#/components/schemas/Event'
+  /events/all:
+    get:
+      operationId: listAllEvents
+      responses:
+        '200':
+          description: All events response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: '#/components/schemas/CreatedEvent'
+                    - $ref: '#/components/schemas/DeletedEvent'
+                    - $ref: '#/components/schemas/RenamedEvent'
+                  discriminator:
+                    propertyName: type
+                    mapping:
+                      created: '#/components/schemas/CreatedEvent'
+                      deleted: '#/components/schemas/DeletedEvent'
+                      archived: '#/components/schemas/DeletedEvent'
+                      renamed: '#/components/schemas/RenamedEvent'
   /events/latest:
     get:
       operationId: getLatestEvent
